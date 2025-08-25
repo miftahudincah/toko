@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Developer - Manajemen User & Token</title>
+<style>
+body {
+  font-family:"Segoe UI", Tahoma, sans-serif;
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  color:#fff;
+  margin:0;
+  padding:20px;
+}
+.container {
+  max-width:1200px;
+  margin:auto;
+  background:#fff;
+  color:#333;
+  border-radius:15px;
+  padding:20px;
+  box-shadow:0 8px 25px rgba(0,0,0,0.3);
+  margin-bottom:30px;
+}
+h2 { text-align:center; color:#203a43; margin-bottom:20px; }
+h3 { color:#2575fc; margin-bottom:10px; }
+form {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:10px;
+  margin-bottom:20px;
+}
+input,select {
+  padding:8px;
+  border:1px solid #ccc;
+  border-radius:8px;
+}
+button {
+  padding:8px 14px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:14px;
+}
+.btn-primary { background:#2575fc; color:#fff; }
+.btn-primary:hover { background:#1d5fd1; }
+.btn-danger { background:#e74c3c; color:#fff; }
+.btn-danger:hover { background:#c0392b; }
+.user-table { width:100%; border-collapse:collapse; }
+.user-table th, .user-table td {
+  border:1px solid #ddd;
+  padding:10px;
+  text-align:center;
+}
+.user-table th { background:#2c5364; color:#fff; }
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<!-- Manajemen User -->
+<div class="container">
+  <h2>👨‍💻 Developer - Manajemen User</h2>
+  <h3>Tambah User Baru</h3>
+  <form id="addUserForm">
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="text" id="password" placeholder="Password" required>
+    <input type="text" id="token" placeholder="Token" required>
+    <input type="text" id="ibu" placeholder="Nama Ibu Kandung" required>
+    <select id="isAdmin">
+      <option value="false">User Biasa</option>
+      <option value="true">Admin</option>
+    </select>
+    <button type="submit" class="btn-primary">Tambah User</button>
+  </form>
+
+  <h3>Daftar User</h3>
+  <table class="user-table" id="userTable">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Password</th>
+        <th>Token</th>
+        <th>Nama Ibu</th>
+        <th>Admin?</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- Manajemen Token -->
+<div class="container">
+  <h2>🔑 Developer - Daftar Token</h2>
+  <h3>Token yang digunakan oleh User</h3>
+  <table class="user-table" id="tokenTable">
+    <thead>
+      <tr>
+        <th>Token</th>
+        <th>Jumlah User</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+// Firebase Config
+const firebaseConfig={ databaseURL:"https://esp32-3a6dd-default-rtdb.firebaseio.com/" };
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+/* ---------- USER MANAGEMENT ---------- */
+document.getElementById("addUserForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const email=document.getElementById("email").value.trim();
+  const password=document.getElementById("password").value.trim();
+  const token=document.getElementById("token").value.trim();
+  const ibu=document.getElementById("ibu").value.trim();
+  const isAdmin=document.getElementById("isAdmin").value==="true";
+
+  if(!email||!password||!token||!ibu){ alert("Lengkapi semua data!"); return; }
+
+  const userId=email.replace(/\W/g,"_");
+  db.ref("users/"+userId).set({email,password,token,ibu,isAdmin}).then(()=>{
+    alert("User berhasil ditambahkan!");
+    document.getElementById("addUserForm").reset();
+    loadAllUsers();
+    loadAllTokens();
+  });
+});
+
+// Load semua user
+function loadAllUsers(){
+  const tbody=document.querySelector("#userTable tbody");
+  tbody.innerHTML="";
+  db.ref("users").get().then(snap=>{
+    if(snap.exists()){
+      const users=snap.val();
+      for(const key in users){
+        const u=users[key];
+        const tr=document.createElement("tr");
+        tr.innerHTML=`
+          <td>${u.email}</td>
+          <td>${u.password}</td>
+          <td>${u.token||"-"}</td>
+          <td>${u.ibu||"-"}</td>
+          <td>${u.isAdmin?"✅":"❌"}</td>
+          <td><button class="btn-danger" onclick="deleteUser('${u.email}')">Hapus</button></td>
+        `;
+        tbody.appendChild(tr);
+      }
+    } else {
+      tbody.innerHTML=`<tr><td colspan="6">Belum ada user</td></tr>`;
+    }
+  });
+}
+
+// Hapus user
+function deleteUser(email){
+  if(confirm("Yakin ingin menghapus user: "+email+" ?")){
+    const userId=email.replace(/\W/g,"_");
+    db.ref("users/"+userId).remove().then(()=>{
+      alert("User "+email+" berhasil dihapus!");
+      loadAllUsers();
+      loadAllTokens();
+    });
+  }
+}
+
+/* ---------- TOKEN MANAGEMENT ---------- */
+// Ambil semua token dari user
+function loadAllTokens(){
+  const tbody=document.querySelector("#tokenTable tbody");
+  tbody.innerHTML="";
+  db.ref("users").get().then(snap=>{
+    if(snap.exists()){
+      const users=snap.val();
+      const tokenCount={};
+      for(const key in users){
+        const token=users[key].token||"-";
+        if(!tokenCount[token]) tokenCount[token]=0;
+        tokenCount[token]++;
+      }
+      for(const token in tokenCount){
+        const tr=document.createElement("tr");
+        tr.innerHTML=`
+          <td>${token}</td>
+          <td>${tokenCount[token]} user</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    } else {
+      tbody.innerHTML=`<tr><td colspan="2">Belum ada token</td></tr>`;
+    }
+  });
+}
+
+/* Inisialisasi */
+loadAllUsers();
+loadAllTokens();
+</script>
+</body>
+</html>
