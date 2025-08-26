@@ -321,7 +321,7 @@ function countUsersByToken(token){
   });
 }
 
-// Hapus Token dari /panel
+// Hapus Token dari /panel + semua user yg pakai
 function deleteToken(token){
   if(token==="developer"){ showToast("⚠️ Token ini tidak bisa dihapus!","orange"); return; }
   if(confirm("Yakin ingin menghapus token: "+token+" ?")){
@@ -331,12 +331,12 @@ function deleteToken(token){
         const users=snap.val();
         for(const key in users){
           if(users[key].token===token){
-            db.ref("users/"+key+"/token").remove();
+            db.ref("users/"+key).remove(); // Hapus user sepenuhnya
           }
         }
       }
     });
-    showToast("🗑️ Token "+token+" berhasil dihapus!","red");
+    showToast("🗑️ Token "+token+" dan semua user terkait berhasil dihapus!","red");
     loadAllTokens(); loadAllUsers();
   }
 }
@@ -347,4 +347,4 @@ document.getElementById("toggleMode").addEventListener("click",()=>{
 });
 </script>
 </body>
-</html>
+  </html>
