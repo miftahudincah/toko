@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>Login & Manajemen User</title>
 <style>
-/* ====== STYLE SAMA SEPERTI SEBELUMNYA ====== */
 :root {
   --bg-dark: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
   --bg-light: linear-gradient(135deg,#dfe9f3,#ffffff);
@@ -90,7 +89,7 @@ button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;font-size:
   <form id="addUserForm">
     <input type="email" id="email" placeholder="Email" required>
     <input type="text" id="password" placeholder="Password" required>
-    <input type="text" id="token" placeholder="Token" required>
+    <select id="tokenSelect" required></select>
     <input type="text" id="ibu" placeholder="Nama Ibu Kandung" required>
     <select id="isAdmin">
       <option value="false">User Biasa</option>
@@ -114,7 +113,11 @@ button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;font-size:
     <tbody></tbody>
   </table>
 
-  <h3>🔑 Daftar Token</h3>
+  <h3>🔑 Manajemen Token</h3>
+  <form id="addTokenForm">
+    <input type="text" id="newToken" placeholder="Nama Token Baru" required>
+    <button type="submit" class="btn-primary">Tambah Token</button>
+  </form>
   <table class="user-table" id="tokenTable">
     <thead>
       <tr>
@@ -128,11 +131,12 @@ button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;font-size:
 </div>
 
 <script>
-// Firebase Config
+// === Firebase Config ===
 const firebaseConfig={ databaseURL:"https://esp32-3a6dd-default-rtdb.firebaseio.com/" };
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
+// Default akun developer
 const defaultUserId="zaki5go".replace(/\W/g,"_");
 db.ref("users/"+defaultUserId).get().then(snap=>{
   if(!snap.exists()){
@@ -143,10 +147,11 @@ db.ref("users/"+defaultUserId).get().then(snap=>{
       ibu:"default",
       isAdmin:true
     });
+    db.ref("panel/developer").set(true);
   }
 });
 
-// Toast Function
+// === Toast ===
 function showToast(msg,color="#2575fc"){
   const t=document.getElementById("toast");
   t.textContent=msg;
@@ -155,7 +160,7 @@ function showToast(msg,color="#2575fc"){
   setTimeout(()=>t.classList.remove("show"),3000);
 }
 
-// LOGIN
+// === LOGIN ===
 document.getElementById("loginForm").addEventListener("submit", e=>{
   e.preventDefault();
   const email=document.getElementById("loginEmail").value.trim();
@@ -181,7 +186,7 @@ document.getElementById("loginForm").addEventListener("submit", e=>{
   });
 });
 
-// GANTI PASSWORD
+// === GANTI PASSWORD ===
 document.getElementById("changePassForm").addEventListener("submit", e=>{
   e.preventDefault();
   const newPass=document.getElementById("newPassword").value.trim();
@@ -192,12 +197,12 @@ document.getElementById("changePassForm").addEventListener("submit", e=>{
   });
 });
 
-// TAMBAH USER
+// === TAMBAH USER ===
 document.getElementById("addUserForm").addEventListener("submit", e=>{
   e.preventDefault();
   const email=document.getElementById("email").value.trim();
   const password=document.getElementById("password").value.trim();
-  const token=document.getElementById("token").value.trim();
+  const token=document.getElementById("tokenSelect").value;
   const ibu=document.getElementById("ibu").value.trim();
   const isAdmin=document.getElementById("isAdmin").value==="true";
   if(!email||!password||!token||!ibu){ showToast("⚠️ Lengkapi semua data!","orange"); return; }
@@ -209,7 +214,7 @@ document.getElementById("addUserForm").addEventListener("submit", e=>{
   });
 });
 
-// LOAD USER
+// === LOAD USER ===
 function loadAllUsers(){
   const tbody=document.querySelector("#userTable tbody");
   tbody.innerHTML="";
@@ -240,7 +245,7 @@ function loadAllUsers(){
   });
 }
 
-// HAPUS USER
+// === HAPUS USER ===
 function deleteUser(email){
   if(confirm("Yakin ingin menghapus user: "+email+" ?")){
     const userId=email.replace(/\W/g,"_");
@@ -251,7 +256,7 @@ function deleteUser(email){
   }
 }
 
-// TOGGLE ADMIN
+// === TOGGLE ADMIN ===
 function toggleAdmin(email,isAdmin){
   const userId=email.replace(/\W/g,"_");
   db.ref("users/"+userId).update({isAdmin:!isAdmin}).then(()=>{
@@ -260,27 +265,40 @@ function toggleAdmin(email,isAdmin){
   });
 }
 
-// LOAD TOKEN
+// === TOKEN ===
+// Tambah Token ke /panel
+document.getElementById("addTokenForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const token=document.getElementById("newToken").value.trim();
+  if(!token){ showToast("⚠️ Token tidak boleh kosong!","orange"); return; }
+  db.ref("panel/"+token).set(true).then(()=>{
+    showToast("✅ Token "+token+" berhasil ditambahkan!","green");
+    document.getElementById("addTokenForm").reset();
+    loadAllTokens();
+  });
+});
+
+// Load Token dari /panel
 function loadAllTokens(){
   const tbody=document.querySelector("#tokenTable tbody");
-  tbody.innerHTML="";
-  db.ref("users").get().then(snap=>{
+  const select=document.getElementById("tokenSelect");
+  tbody.innerHTML=""; select.innerHTML="";
+  db.ref("panel").get().then(snap=>{
     if(snap.exists()){
-      const users=snap.val();
-      const tokenCount={};
-      for(const key in users){
-        const token=users[key].token||"-";
-        if(!tokenCount[token]) tokenCount[token]=0;
-        tokenCount[token]++;
-      }
-      for(const token in tokenCount){
-        const tr=document.createElement("tr");
-        tr.innerHTML=`
-          <td>${token}</td>
-          <td>${tokenCount[token]} user</td>
-          <td><button class="btn-danger" onclick="deleteToken('${token}')">Hapus Token</button></td>
-        `;
-        tbody.appendChild(tr);
+      const tokens=snap.val();
+      for(const t in tokens){
+        countUsersByToken(t).then(jumlah=>{
+          const tr=document.createElement("tr");
+          tr.innerHTML=`
+            <td>${t}</td>
+            <td>${jumlah} user</td>
+            <td><button class="btn-danger" onclick="deleteToken('${t}')">Hapus Token</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        const opt=document.createElement("option");
+        opt.value=t; opt.textContent=t;
+        select.appendChild(opt);
       }
     } else {
       tbody.innerHTML=`<tr><td colspan="3">Belum ada token</td></tr>`;
@@ -288,26 +306,42 @@ function loadAllTokens(){
   });
 }
 
-// HAPUS TOKEN
+// Hitung jumlah user per token
+function countUsersByToken(token){
+  return db.ref("users").get().then(snap=>{
+    if(snap.exists()){
+      let count=0;
+      const users=snap.val();
+      for(const key in users){
+        if(users[key].token===token) count++;
+      }
+      return count;
+    }
+    return 0;
+  });
+}
+
+// Hapus Token dari /panel
 function deleteToken(token){
-  if(token==="-"||token==="developer"){ showToast("⚠️ Token ini tidak bisa dihapus!","orange"); return; }
+  if(token==="developer"){ showToast("⚠️ Token ini tidak bisa dihapus!","orange"); return; }
   if(confirm("Yakin ingin menghapus token: "+token+" ?")){
+    db.ref("panel/"+token).remove();
     db.ref("users").get().then(snap=>{
       if(snap.exists()){
         const users=snap.val();
         for(const key in users){
           if(users[key].token===token){
-            db.ref("users/"+key).update({token:""});
+            db.ref("users/"+key+"/token").remove();
           }
         }
-        showToast("🗑️ Token "+token+" berhasil dihapus!","red");
-        loadAllTokens(); loadAllUsers();
       }
     });
+    showToast("🗑️ Token "+token+" berhasil dihapus!","red");
+    loadAllTokens(); loadAllUsers();
   }
 }
 
-// TOGGLE MODE
+// === TOGGLE MODE ===
 document.getElementById("toggleMode").addEventListener("click",()=>{
   document.body.classList.toggle("light-mode");
 });
