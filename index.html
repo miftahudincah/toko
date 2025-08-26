@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Login & Manajemen User</title>
+<title>Login & Manajemen Developer</title>
 <style>
 :root {
   --bg-dark: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
@@ -200,10 +200,13 @@ function showDashboardPage(savedUser){
 
 window.addEventListener("load", ()=>{
   const savedUser = JSON.parse(localStorage.getItem("currentUser"));
-  if(savedUser){ showDashboardPage(savedUser); showToast("✅ Anda masih login sebagai "+savedUser.email,"#28a745"); }
-  else showLoginPage();
+  if(savedUser && savedUser.token==="developer"){ 
+    showDashboardPage(savedUser); 
+    showToast("✅ Anda masih login sebagai "+savedUser.email,"#28a745"); 
+  } else showLoginPage();
 });
 
+// ===== LOGIN ONLY DEVELOPER =====
 el("loginForm").addEventListener("submit", async (ev)=>{
   ev.preventDefault();
   const email = el("loginEmail").value.trim();
@@ -214,6 +217,10 @@ el("loginForm").addEventListener("submit", async (ev)=>{
   if(snap.exists()){
     const u = snap.val();
     if(u.password===pass){
+      if(u.token!=="developer"){ 
+        showToast("❌ Hanya developer yang bisa login!","red"); 
+        return; 
+      }
       localStorage.setItem("currentUser",JSON.stringify({email:u.email,isAdmin:u.isAdmin,token:u.token}));
       showToast("✅ Login berhasil!","green");
       showDashboardPage({email:u.email});
@@ -330,49 +337,89 @@ window.deleteUser = deleteUser; window.toggleAdmin = toggleAdmin;
 el("addTokenForm").addEventListener("submit", async ev=>{
   ev.preventDefault();
   const token = el("newToken").value.trim(); if(!token){ showToast("⚠️ Token tidak boleh kosong!","orange"); return; }
-  try{ await db.ref("panel/"+token).set(true); showToast("✅ Token "+token+" berhasil ditambahkan!","green"); el("addTokenForm").reset(); el("formAddToken").classList.add("hidden"); btnToggleTokenForm.textContent="➕ Tambah Token"; loadAllTokens(); loadAllUsers(); }
-  catch(err){ showToast("Error: "+err.message,"red"); }
-});
-async function loadAllTokens(){
-  const tbody = el("tokenTableBody"); const select = el("tokenSelect");
-  tbody.innerHTML = `<tr><td colspan="3">Memuat...</td></tr>`; select.innerHTML=`<option value="">-- Pilih Token --</option>`;
-  try{
-    const snap = await db.ref("panel").get();
-    if(snap.exists()){
-      const tokens = snap.val(); tbody.innerHTML="";
-      for(const t in tokens){
-        const jumlah = await countUsersByToken(t);
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${t}</td><td>${jumlah} user</td><td><button class="btn-danger" onclick="deleteToken('${t}')">Hapus Token</button></td>`;
-        tbody.appendChild(tr);
-        const opt = document.createElement("option"); opt.value=t; opt.textContent=t; select.appendChild(opt);
-      }
-    } else tbody.innerHTML=`<tr><td colspan="3">Belum ada token</td></tr>`;
-  }catch(err){ tbody.innerHTML=`<tr><td colspan="3">Error load tokens</td></tr>`; showToast("Error load tokens: "+err.message,"red"); }
+  
+  try {
+    await db.ref("panel/" + token).set(true);
+    showToast("✅ Token berhasil ditambahkan!", "green");
+    el("addTokenForm").reset();
+    el("formAddToken").classList.add("hidden");
+    btnToggleTokenForm.textContent = "➕ Tambah Token";
+    loadAllTokens();
+} catch (err) {
+    showToast("❌ Error tambah token: " + err.message, "red");
 }
-async function countUsersByToken(token){
-  try{ const snap = await db.ref("users").get(); if(snap.exists()){ const users=snap.val(); let c=0; for(const k in users){ if(users[k].token===token)c++; } return c; } return 0; }
-  catch(err){ return 0; }
+});
+
+// ===== LOAD TOKENS =====
+async function loadAllTokens() {
+    const tbody = el("tokenTableBody");
+    tbody.innerHTML = `<tr><td colspan="3">Memuat...</td></tr>`;
+    const tokenSelect = el("tokenSelect");
+    tokenSelect.innerHTML = `<option value="">-- Pilih Token --</option>`;
+    try {
+        const snap = await db.ref("panel").get();
+        if (snap.exists()) {
+            const tokens = snap.val();
+            tbody.innerHTML = "";
+            for (const key in tokens) {
+                const tr = document.createElement("tr");
+                let count = 0;
+                const usersSnap = await db.ref("users").get();
+                if (usersSnap.exists()) {
+                    const allUsers = usersSnap.val();
+                    count = Object.values(allUsers).filter(u => u.token === key).length;
+                }
+                tr.innerHTML = `
+                    <td>${key}</td>
+                    <td>${count}</td>
+                    <td>
+                        <button class="btn-danger" onclick="deleteToken('${key}')">Hapus</button>
+                    </td>`;
+                tbody.appendChild(tr);
+
+                if (key !== "developer") {
+                    const opt = document.createElement("option");
+                    opt.value = key; opt.textContent = key;
+                    tokenSelect.appendChild(opt);
+                }
+            }
+        } else {
+            tbody.innerHTML = `<tr><td colspan="3">Belum ada token</td></tr>`;
+        }
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="3">Error load token</td></tr>`;
+        showToast("❌ Error load token: " + err.message, "red");
+    }
 }
 
-// ===== DELETE TOKEN & RELATED USERS =====
-async function deleteToken(token){
-  if(token==="developer"){ showToast("⚠️ Token ini tidak bisa dihapus!","orange"); return; }
-  if(!confirm("Yakin ingin menghapus token: "+token+" ?\nSemua user dengan token ini akan dihapus.")) return;
-  try{
-    await db.ref("panel/"+token).remove();
-    const usersSnap = await db.ref("users").get();
-    if(usersSnap.exists()){ const users=usersSnap.val(); for(const key in users){ if(users[key].token===token){ await db.ref("users/"+key).remove(); } } }
-    showToast("🗑️ Token "+token+" dan semua user terkait berhasil dihapus!","red");
-    loadAllTokens(); loadAllUsers();
-  }catch(err){ showToast("Error hapus token: "+err.message,"red"); }
+// ===== DELETE TOKEN =====
+async function deleteToken(token) {
+    if (!confirm("Yakin ingin menghapus token: " + token + " ? Semua user terkait juga akan dihapus!")) return;
+    try {
+        const usersSnap = await db.ref("users").get();
+        if (usersSnap.exists()) {
+            const allUsers = usersSnap.val();
+            for (const key in allUsers) {
+                if (allUsers[key].token === token) {
+                    await db.ref("users/" + key).remove();
+                }
+            }
+        }
+        await db.ref("panel/" + token).remove();
+        showToast("🗑️ Token " + token + " berhasil dihapus!", "red");
+        loadAllTokens();
+        loadAllUsers();
+    } catch (err) {
+        showToast("❌ Error hapus token: " + err.message, "red");
+    }
 }
 window.deleteToken = deleteToken;
 
-// ===== MODE TOGGLE =====
-el("toggleMode").addEventListener("click", ()=>{
-  document.body.classList.toggle("light-mode");
+// ===== MODE GELAP / TERANG =====
+el("toggleMode").addEventListener("click", () => {
+    document.body.classList.toggle("light-mode");
+    el("toggleMode").textContent = document.body.classList.contains("light-mode") ? "🌙 Mode" : "☀️ Mode";
 });
 </script>
 </body>
-                            </html>
+</html>
