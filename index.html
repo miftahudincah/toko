@@ -79,6 +79,8 @@ button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;font-size:
 <div class="container hidden" id="dashboard">
   <h2>👨‍💻 Developer - Manajemen User</h2>
 
+  <button onclick="logout()" class="btn-danger" style="float:right;">Logout</button>
+
   <h3>🔑 Ganti Password</h3>
   <form id="changePassForm">
     <input type="password" id="newPassword" placeholder="Password Baru" required>
@@ -160,6 +162,20 @@ function showToast(msg,color="#2575fc"){
   setTimeout(()=>t.classList.remove("show"),3000);
 }
 
+// === CHECK LOGIN SAAT LOAD ===
+window.addEventListener("load", ()=>{
+  const savedUser = JSON.parse(localStorage.getItem("currentUser"));
+  if(savedUser){
+    document.getElementById("loginPage").classList.add("hidden");
+    const dash=document.getElementById("dashboard");
+    dash.classList.remove("hidden");
+    setTimeout(()=>dash.classList.add("show"),50);
+    loadAllUsers();
+    loadAllTokens();
+    showToast("✅ Anda masih login sebagai "+savedUser.email,"green");
+  }
+});
+
 // === LOGIN ===
 document.getElementById("loginForm").addEventListener("submit", e=>{
   e.preventDefault();
@@ -171,6 +187,10 @@ document.getElementById("loginForm").addEventListener("submit", e=>{
       const u=snap.val();
       if(u.password===pass){
         showToast("✅ Login berhasil!","green");
+
+        // Simpan status login
+        localStorage.setItem("currentUser", JSON.stringify({email:u.email,isAdmin:u.isAdmin,token:u.token}));
+
         document.getElementById("loginPage").classList.add("hidden");
         const dash=document.getElementById("dashboard");
         dash.classList.remove("hidden");
@@ -185,6 +205,12 @@ document.getElementById("loginForm").addEventListener("submit", e=>{
     }
   });
 });
+
+// === LOGOUT ===
+function logout(){
+  localStorage.removeItem("currentUser");
+  location.reload();
+}
 
 // === GANTI PASSWORD ===
 document.getElementById("changePassForm").addEventListener("submit", e=>{
@@ -266,7 +292,6 @@ function toggleAdmin(email,isAdmin){
 }
 
 // === TOKEN ===
-// Tambah Token ke /panel
 document.getElementById("addTokenForm").addEventListener("submit", e=>{
   e.preventDefault();
   const token=document.getElementById("newToken").value.trim();
@@ -278,7 +303,6 @@ document.getElementById("addTokenForm").addEventListener("submit", e=>{
   });
 });
 
-// Load Token dari /panel
 function loadAllTokens(){
   const tbody=document.querySelector("#tokenTable tbody");
   const select=document.getElementById("tokenSelect");
@@ -306,7 +330,6 @@ function loadAllTokens(){
   });
 }
 
-// Hitung jumlah user per token
 function countUsersByToken(token){
   return db.ref("users").get().then(snap=>{
     if(snap.exists()){
@@ -321,7 +344,6 @@ function countUsersByToken(token){
   });
 }
 
-// Hapus Token dari /panel + semua user yg pakai
 function deleteToken(token){
   if(token==="developer"){ showToast("⚠️ Token ini tidak bisa dihapus!","orange"); return; }
   if(confirm("Yakin ingin menghapus token: "+token+" ?")){
@@ -331,7 +353,7 @@ function deleteToken(token){
         const users=snap.val();
         for(const key in users){
           if(users[key].token===token){
-            db.ref("users/"+key).remove(); // Hapus user sepenuhnya
+            db.ref("users/"+key).remove();
           }
         }
       }
@@ -347,4 +369,4 @@ document.getElementById("toggleMode").addEventListener("click",()=>{
 });
 </script>
 </body>
-  </html>
+</html>
