@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Login & Manajemen User</title>
 <style>
 :root {
@@ -12,361 +13,366 @@
   --text-dark: #fff;
   --text-light: #333;
 }
+*{box-sizing:border-box}
 body {
   font-family:"Segoe UI", Tahoma, sans-serif;
   background: var(--bg-dark);
   color: var(--text-dark);
   margin:0; padding:20px;
-  display:flex; justify-content:center; align-items:center;
+  display:flex; justify-content:center; align-items:flex-start;
   min-height:100vh;
   transition: background 0.6s, color 0.6s;
 }
+body.light-mode{ background: var(--bg-light); color: var(--text-light); }
+.wrap { width:100%; max-width:1100px; }
+
 .container {
-  width:100%; max-width:1200px;
   background:var(--card-dark); color:var(--text-dark);
-  border-radius:15px; padding:20px;
+  border-radius:12px; padding:18px;
   box-shadow:0 8px 25px rgba(0,0,0,0.3);
-  opacity:0; transform:translateY(30px);
-  transition:all 0.6s ease;
+  margin-bottom:18px;
 }
-.container.show { opacity:1; transform:translateY(0); }
-h2{text-align:center;margin-bottom:20px;}
-h3{margin:15px 0 10px;color:#00c6ff;}
-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:20px;}
-input,select{padding:10px;border:1px solid #ccc;border-radius:8px;transition:border 0.3s;}
-input:focus{border-color:#2575fc;outline:none;}
-button{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;font-size:14px;transition:all 0.3s ease;}
-.btn-primary{background:#2575fc;color:#fff;}
-.btn-primary:hover{background:#1d5fd1;transform:scale(1.05);}
-.btn-danger{background:#e74c3c;color:#fff;}
-.btn-danger:hover{background:#c0392b;transform:scale(1.05);}
-.btn-warning{background:#f39c12;color:#fff;}
-.btn-warning:hover{background:#d68910;transform:scale(1.05);}
-.user-table{width:100%;border-collapse:collapse;margin-top:10px;}
-.user-table th,.user-table td{border:1px solid #444;padding:10px;text-align:center;}
-.user-table th{background:#2575fc;color:#fff;}
-.user-table tr{transition:background 0.3s;}
-.user-table tr:hover{background:rgba(255,255,255,0.1);}
-.hidden{display:none;}
-.light-mode{background:var(--bg-light);color:var(--text-light);}
-.light-mode .container{background:var(--card-light);color:var(--text-light);}
-.light-mode .user-table th{background:#444;}
-.toast{position:fixed;top:20px;right:20px;background:#2575fc;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;transform:translateY(-20px);transition:all 0.5s ease;z-index:9999;}
-.toast.show{opacity:1;transform:translateY(0);}
+body.light-mode .container{ background:var(--card-light); color:var(--text-light);}
+.header {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+}
+h2{ margin:0 0 12px 0; font-size:20px }
+h3{margin:18px 0 10px;color:#00c6ff;}
+form.row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; align-items:center; }
+input,select,button{ font-family:inherit }
+input,select{padding:10px;border-radius:8px;border:1px solid #ccc; background:transparent; color:inherit}
+input:focus{border-color:#2575fc; outline:none}
+button{ padding:10px 14px;border-radius:8px;border:none; cursor:pointer; font-size:14px }
+.btn-primary{ background:#2575fc;color:#fff }
+.btn-primary:hover{ transform:scale(1.02) }
+.btn-danger{ background:#e74c3c;color:#fff }
+.btn-warning{ background:#f39c12;color:#fff }
+.btn-muted{ background:transparent; border:1px solid rgba(255,255,255,0.08); color:inherit }
+.user-table{ width:100%; border-collapse:collapse; margin-top:10px; }
+.user-table th,.user-table td{ border:1px solid #3a3f45; padding:10px; text-align:center; }
+.user-table th{ background:#2575fc; color:#fff }
+.hidden{ display:none!important }
+.toast{ position:fixed; top:20px; right:20px; background:#2575fc; color:#fff; padding:10px 18px; border-radius:10px; opacity:0; transform:translateY(-10px); transition:all .35s; z-index:9999; }
+.toast.show{ opacity:1; transform:translateY(0) }
+.small{ font-size:13px; color:rgba(255,255,255,0.8) }
+.controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.right { margin-left:auto }
+.form-card { background:rgba(255,255,255,0.03); padding:12px; border-radius:10px; margin-top:8px; }
+.note { font-size:13px; color:rgba(255,255,255,0.7); margin-top:6px }
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </head>
 <body>
+<div class="wrap">
+  <div id="toast" class="toast"></div>
 
-<!-- TOAST -->
-<div id="toast" class="toast"></div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+    <button id="toggleMode" class="btn-primary">🌙 Mode</button>
+  </div>
 
-<!-- TOGGLE MODE -->
-<button id="toggleMode" style="position:fixed;bottom:20px;right:20px;z-index:1000;" class="btn-primary">🌙 Mode</button>
+  <!-- LOGIN PAGE -->
+  <div id="loginPage" class="container">
+    <div class="header">
+      <h2>🔐 Login Developer</h2>
+      <div class="small">Masukkan username / email & password</div>
+    </div>
+    <form id="loginForm" class="row" onsubmit="return false;">
+      <input type="text" id="loginEmail" placeholder="Username / Email" required />
+      <input type="password" id="loginPassword" placeholder="Password" required />
+      <div class="controls">
+        <button type="submit" class="btn-primary" id="btnLogin">Login</button>
+        <div class="note">Default dev: <strong>zaki5go</strong> / <strong>miftahuddin9</strong></div>
+      </div>
+    </form>
+  </div>
 
-<!-- LOGIN PAGE -->
-<div class="container show" id="loginPage">
-  <h2>🔐 Login Developer</h2>
-  <form id="loginForm">
-    <input type="text" id="loginEmail" placeholder="Username / Email" required>
-    <input type="password" id="loginPassword" placeholder="Password" required>
-    <button type="submit" class="btn-primary">Login</button>
-  </form>
-</div>
+  <!-- DASHBOARD PAGE -->
+  <div id="dashboard" class="container hidden">
+    <div class="header">
+      <div>
+        <h2>👨‍💻 Developer - Manajemen User</h2>
+        <div id="loggedAs" class="small"></div>
+      </div>
+      <div class="controls">
+        <button id="btnToggleUserForm" class="btn-primary">➕ Tambah User</button>
+        <button id="btnToggleTokenForm" class="btn-primary">➕ Tambah Token</button>
+        <button onclick="logout()" class="btn-danger">🚪 Logout</button>
+      </div>
+    </div>
 
-<!-- DASHBOARD PAGE -->
-<div class="container hidden" id="dashboard">
-  <h2>👨‍💻 Developer - Manajemen User</h2>
+    <h3>🔑 Ganti Password</h3>
+    <form id="changePassForm" class="row">
+      <input type="password" id="newPassword" placeholder="Password Baru (untuk default dev)" required />
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn-primary">Ganti Password</button>
+        <button type="button" id="btnCancelChangePass" class="btn-muted">Batal</button>
+      </div>
+    </form>
 
-  <button onclick="logout()" class="btn-danger" style="float:right;">Logout</button>
+    <div id="formAddUser" class="form-card hidden">
+      <h3 style="margin-top:0">➕ Form Tambah User</h3>
+      <form id="addUserForm" class="row">
+        <input type="email" id="email" placeholder="Email" required />
+        <input type="text" id="password" placeholder="Password" required />
+        <select id="tokenSelect" required>
+          <option value="">-- Pilih Token --</option>
+        </select>
+        <input type="text" id="ibu" placeholder="Nama Ibu Kandung" required />
+        <select id="isAdmin">
+          <option value="false">User Biasa</option>
+          <option value="true">Admin</option>
+        </select>
+        <div style="display:flex;gap:8px;">
+          <button type="submit" class="btn-primary">Simpan User</button>
+          <button type="button" id="btnCancelAddUser" class="btn-warning">Batal</button>
+        </div>
+      </form>
+      <div class="note">Form akan disembunyikan setelah berhasil simpan atau ditekan Batal.</div>
+    </div>
 
-  <h3>🔑 Ganti Password</h3>
-  <form id="changePassForm">
-    <input type="password" id="newPassword" placeholder="Password Baru" required>
-    <button type="submit" class="btn-primary">Ganti Password</button>
-  </form>
+    <h3>📋 Daftar User</h3>
+    <table class="user-table">
+      <thead>
+        <tr><th>Email</th><th>Password</th><th>Token</th><th>Nama Ibu</th><th>Admin?</th><th>Aksi</th></tr>
+      </thead>
+      <tbody id="userTableBody"></tbody>
+    </table>
 
-  <h3>➕ Tambah User Baru</h3>
-  <form id="addUserForm">
-    <input type="email" id="email" placeholder="Email" required>
-    <input type="text" id="password" placeholder="Password" required>
-    <select id="tokenSelect" required></select>
-    <input type="text" id="ibu" placeholder="Nama Ibu Kandung" required>
-    <select id="isAdmin">
-      <option value="false">User Biasa</option>
-      <option value="true">Admin</option>
-    </select>
-    <button type="submit" class="btn-primary">Tambah User</button>
-  </form>
+    <div id="formAddToken" class="form-card hidden">
+      <h3 style="margin-top:0">🔑 Form Tambah Token</h3>
+      <form id="addTokenForm" class="row">
+        <input type="text" id="newToken" placeholder="Nama Token Baru" required />
+        <div style="display:flex;gap:8px;">
+          <button type="submit" class="btn-primary">Simpan Token</button>
+          <button type="button" id="btnCancelAddToken" class="btn-warning">Batal</button>
+        </div>
+      </form>
+      <div class="note">Menghapus token akan menghapus juga semua user terkait.</div>
+    </div>
 
-  <h3>📋 Daftar User</h3>
-  <table class="user-table" id="userTable">
-    <thead>
-      <tr>
-        <th>Email</th>
-        <th>Password</th>
-        <th>Token</th>
-        <th>Nama Ibu</th>
-        <th>Admin?</th>
-        <th>Aksi</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <h3>🔑 Manajemen Token</h3>
-  <form id="addTokenForm">
-    <input type="text" id="newToken" placeholder="Nama Token Baru" required>
-    <button type="submit" class="btn-primary">Tambah Token</button>
-  </form>
-  <table class="user-table" id="tokenTable">
-    <thead>
-      <tr>
-        <th>Token</th>
-        <th>Jumlah User</th>
-        <th>Aksi</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <h3>🔑 Manajemen Token</h3>
+    <table class="user-table">
+      <thead>
+        <tr><th>Token</th><th>Jumlah User</th><th>Aksi</th></tr>
+      </thead>
+      <tbody id="tokenTableBody"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
-// === Firebase Config ===
-const firebaseConfig={ databaseURL:"https://esp32-3a6dd-default-rtdb.firebaseio.com/" };
+const firebaseConfig = { databaseURL: "https://esp32-3a6dd-default-rtdb.firebaseio.com/" };
 firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
+const db = firebase.database();
 
-// Default akun developer
-const defaultUserId="zaki5go".replace(/\W/g,"_");
-db.ref("users/"+defaultUserId).get().then(snap=>{
+const defaultUserId = "zaki5go".replace(/\W/g,"_");
+db.ref("users/"+defaultUserId).get().then(snap => {
   if(!snap.exists()){
     db.ref("users/"+defaultUserId).set({
-      email:"zaki5go",
-      password:"miftahuddin9",
-      token:"developer",
-      ibu:"default",
-      isAdmin:true
+      email:"zaki5go", password:"miftahuddin9",
+      token:"developer", ibu:"default", isAdmin:true
     });
     db.ref("panel/developer").set(true);
   }
 });
 
-// === Toast ===
-function showToast(msg,color="#2575fc"){
-  const t=document.getElementById("toast");
-  t.textContent=msg;
-  t.style.background=color;
-  t.classList.add("show");
-  setTimeout(()=>t.classList.remove("show"),3000);
+const toastEl = document.getElementById("toast");
+let toastTimer = null;
+function showToast(msg, color="#2575fc"){
+  toastEl.textContent = msg; toastEl.style.background=color;
+  toastEl.classList.add("show");
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=> toastEl.classList.remove("show"),3000);
+}
+function el(id){ return document.getElementById(id); }
+
+function showLoginPage(){
+  el("loginPage").classList.remove("hidden");
+  el("dashboard").classList.add("hidden");
+}
+function showDashboardPage(savedUser){
+  el("loginPage").classList.add("hidden");
+  el("dashboard").classList.remove("hidden");
+  el("loggedAs").textContent = savedUser ? "Login sebagai: "+savedUser.email : "";
+  loadAllTokens(); loadAllUsers();
 }
 
-// === CHECK LOGIN SAAT LOAD ===
 window.addEventListener("load", ()=>{
   const savedUser = JSON.parse(localStorage.getItem("currentUser"));
-  if(savedUser){
-    document.getElementById("loginPage").classList.add("hidden");
-    const dash=document.getElementById("dashboard");
-    dash.classList.remove("hidden");
-    setTimeout(()=>dash.classList.add("show"),50);
-    loadAllUsers();
-    loadAllTokens();
-    showToast("✅ Anda masih login sebagai "+savedUser.email,"green");
-  }
+  if(savedUser){ showDashboardPage(savedUser); showToast("✅ Anda masih login sebagai "+savedUser.email,"#28a745"); }
+  else showLoginPage();
 });
 
-// === LOGIN ===
-document.getElementById("loginForm").addEventListener("submit", e=>{
-  e.preventDefault();
-  const email=document.getElementById("loginEmail").value.trim();
-  const pass=document.getElementById("loginPassword").value.trim();
-  const userId=email.replace(/\W/g,"_");
-  db.ref("users/"+userId).get().then(snap=>{
-    if(snap.exists()){
-      const u=snap.val();
-      if(u.password===pass){
-        showToast("✅ Login berhasil!","green");
-
-        // Simpan status login
-        localStorage.setItem("currentUser", JSON.stringify({email:u.email,isAdmin:u.isAdmin,token:u.token}));
-
-        document.getElementById("loginPage").classList.add("hidden");
-        const dash=document.getElementById("dashboard");
-        dash.classList.remove("hidden");
-        setTimeout(()=>dash.classList.add("show"),50);
-        loadAllUsers();
-        loadAllTokens();
-      } else {
-        showToast("❌ Password salah!","red");
-      }
-    } else {
-      showToast("❌ User tidak ditemukan!","red");
-    }
-  });
+el("loginForm").addEventListener("submit", async (ev)=>{
+  ev.preventDefault();
+  const email = el("loginEmail").value.trim();
+  const pass = el("loginPassword").value.trim();
+  if(!email||!pass){ showToast("Isi email & password dulu","orange"); return; }
+  const userId = email.replace(/\W/g,"_");
+  const snap = await db.ref("users/"+userId).get();
+  if(snap.exists()){
+    const u = snap.val();
+    if(u.password===pass){
+      localStorage.setItem("currentUser",JSON.stringify({email:u.email,isAdmin:u.isAdmin,token:u.token}));
+      showToast("✅ Login berhasil!","green");
+      showDashboardPage({email:u.email});
+      el("loginForm").reset();
+    } else showToast("❌ Password salah!","red");
+  } else showToast("❌ User tidak ditemukan!","red");
 });
 
-// === LOGOUT ===
 function logout(){
   localStorage.removeItem("currentUser");
-  location.reload();
+  showToast("👋 Anda berhasil logout!","#f39c12");
+  setTimeout(()=> {
+    showLoginPage();
+    hideAddForms();
+  }, 600);
 }
 
-// === GANTI PASSWORD ===
-document.getElementById("changePassForm").addEventListener("submit", e=>{
-  e.preventDefault();
-  const newPass=document.getElementById("newPassword").value.trim();
+// ===== GANTI PASSWORD =====
+el("changePassForm").addEventListener("submit", (ev)=>{
+  ev.preventDefault();
+  const newPass = el("newPassword").value.trim();
   if(!newPass){ showToast("⚠️ Password tidak boleh kosong!","orange"); return; }
-  db.ref("users/"+defaultUserId).update({password:newPass}).then(()=>{
-    showToast("🔑 Password berhasil diganti!","green");
-    document.getElementById("changePassForm").reset();
-  });
+  db.ref("users/"+defaultUserId).update({ password:newPass })
+    .then(()=> { showToast("🔑 Password berhasil diganti!","green"); el("changePassForm").reset(); })
+    .catch(err=> showToast("Error: "+err.message,"red"));
 });
+el("btnCancelChangePass").addEventListener("click", ()=> el("changePassForm").reset());
 
-// === TAMBAH USER ===
-document.getElementById("addUserForm").addEventListener("submit", e=>{
-  e.preventDefault();
-  const email=document.getElementById("email").value.trim();
-  const password=document.getElementById("password").value.trim();
-  const token=document.getElementById("tokenSelect").value;
-  const ibu=document.getElementById("ibu").value.trim();
-  const isAdmin=document.getElementById("isAdmin").value==="true";
+// ===== SHOW/HIDE FORM =====
+const btnToggleUserForm = el("btnToggleUserForm");
+const btnToggleTokenForm = el("btnToggleTokenForm");
+function hideAddForms(){
+  el("formAddUser").classList.add("hidden");
+  el("formAddToken").classList.add("hidden");
+  btnToggleUserForm.textContent = "➕ Tambah User";
+  btnToggleTokenForm.textContent = "➕ Tambah Token";
+}
+btnToggleUserForm.addEventListener("click", ()=>{
+  const form = el("formAddUser"); form.classList.toggle("hidden");
+  btnToggleUserForm.textContent = form.classList.contains("hidden") ? "➕ Tambah User" : "✖ Tutup Form User";
+  if(!form.classList.contains("hidden")) setTimeout(()=> el("email").focus(), 80);
+  loadAllTokens();
+});
+btnToggleTokenForm.addEventListener("click", ()=>{
+  const form = el("formAddToken"); form.classList.toggle("hidden");
+  btnToggleTokenForm.textContent = form.classList.contains("hidden") ? "➕ Tambah Token" : "✖ Tutup Form Token";
+  if(!form.classList.contains("hidden")) setTimeout(()=> el("newToken").focus(), 80);
+});
+el("btnCancelAddUser").addEventListener("click", ()=>{ el("addUserForm").reset(); el("formAddUser").classList.add("hidden"); btnToggleUserForm.textContent="➕ Tambah User"; });
+el("btnCancelAddToken").addEventListener("click", ()=>{ el("addTokenForm").reset(); el("formAddToken").classList.add("hidden"); btnToggleTokenForm.textContent="➕ Tambah Token"; });
+
+// ===== TAMBAH USER =====
+el("addUserForm").addEventListener("submit", async (ev)=>{
+  ev.preventDefault();
+  const email = el("email").value.trim();
+  const password = el("password").value.trim();
+  const token = el("tokenSelect").value;
+  const ibu = el("ibu").value.trim();
+  const isAdmin = el("isAdmin").value==="true";
   if(!email||!password||!token||!ibu){ showToast("⚠️ Lengkapi semua data!","orange"); return; }
-  const userId=email.replace(/\W/g,"_");
-  db.ref("users/"+userId).set({email,password,token,ibu,isAdmin}).then(()=>{
+  const userId = email.replace(/\W/g,"_");
+  try{
+    await db.ref("users/"+userId).set({email,password,token,ibu,isAdmin});
     showToast("✅ User berhasil ditambahkan!","green");
-    document.getElementById("addUserForm").reset();
+    el("addUserForm").reset(); el("formAddUser").classList.add("hidden"); btnToggleUserForm.textContent="➕ Tambah User";
     loadAllUsers(); loadAllTokens();
-  });
+  }catch(err){ showToast("Error: "+err.message,"red"); }
 });
 
-// === LOAD USER ===
-function loadAllUsers(){
-  const tbody=document.querySelector("#userTable tbody");
-  tbody.innerHTML="";
-  db.ref("users").get().then(snap=>{
+// ===== LOAD USERS =====
+async function loadAllUsers(){
+  const tbody = el("userTableBody");
+  tbody.innerHTML = `<tr><td colspan="6">Memuat...</td></tr>`;
+  try{
+    const snap = await db.ref("users").get();
     if(snap.exists()){
-      const users=snap.val();
+      const users = snap.val(); tbody.innerHTML="";
       for(const key in users){
-        const u=users[key];
-        const tr=document.createElement("tr");
-        tr.innerHTML=`
-          <td>${u.email}</td>
-          <td>${u.password}</td>
+        const u = users[key];
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${u.email||"-"}</td>
+          <td style="max-width:240px;word-break:break-all">${u.password||"-"}</td>
           <td>${u.token||"-"}</td>
           <td>${u.ibu||"-"}</td>
           <td>${u.isAdmin?"✅":"❌"}</td>
           <td>
             <button class="btn-warning" onclick="toggleAdmin('${u.email}',${u.isAdmin})">
               ${u.isAdmin?"Jadikan User":"Jadikan Admin"}
-            </button>
+            </button>&nbsp;
             <button class="btn-danger" onclick="deleteUser('${u.email}')">Hapus</button>
-          </td>
-        `;
+          </td>`;
         tbody.appendChild(tr);
       }
-    } else {
-      tbody.innerHTML=`<tr><td colspan="6">Belum ada user</td></tr>`;
-    }
-  });
+    } else tbody.innerHTML = `<tr><td colspan="6">Belum ada user</td></tr>`;
+  }catch(err){ tbody.innerHTML = `<tr><td colspan="6">Error load users</td></tr>`; showToast("Error load users: "+err.message,"red"); }
 }
 
-// === HAPUS USER ===
-function deleteUser(email){
-  if(confirm("Yakin ingin menghapus user: "+email+" ?")){
-    const userId=email.replace(/\W/g,"_");
-    db.ref("users/"+userId).remove().then(()=>{
-      showToast("🗑️ User "+email+" berhasil dihapus!","red");
-      loadAllUsers(); loadAllTokens();
-    });
-  }
+// ===== DELETE & TOGGLE ADMIN =====
+async function deleteUser(email){
+  if(!confirm("Yakin ingin menghapus user: "+email+" ?")) return;
+  const userId = email.replace(/\W/g,"_");
+  try{ await db.ref("users/"+userId).remove(); showToast("🗑️ User "+email+" berhasil dihapus!","red"); loadAllUsers(); loadAllTokens(); }
+  catch(err){ showToast("Error hapus user: "+err.message,"red"); }
 }
-
-// === TOGGLE ADMIN ===
-function toggleAdmin(email,isAdmin){
-  const userId=email.replace(/\W/g,"_");
-  db.ref("users/"+userId).update({isAdmin:!isAdmin}).then(()=>{
-    showToast("🔄 Status admin diubah!","blue");
-    loadAllUsers();
-  });
+async function toggleAdmin(email,isAdmin){
+  const userId = email.replace(/\W/g,"_");
+  try{ await db.ref("users/"+userId).update({isAdmin:!isAdmin}); showToast("🔄 Status admin diubah!","#00a8ff"); loadAllUsers(); }
+  catch(err){ showToast("Error: "+err.message,"red"); }
 }
+window.deleteUser = deleteUser; window.toggleAdmin = toggleAdmin;
 
-// === TOKEN ===
-document.getElementById("addTokenForm").addEventListener("submit", e=>{
-  e.preventDefault();
-  const token=document.getElementById("newToken").value.trim();
-  if(!token){ showToast("⚠️ Token tidak boleh kosong!","orange"); return; }
-  db.ref("panel/"+token).set(true).then(()=>{
-    showToast("✅ Token "+token+" berhasil ditambahkan!","green");
-    document.getElementById("addTokenForm").reset();
-    loadAllTokens();
-  });
+// ===== TAMBAH & LOAD TOKEN =====
+el("addTokenForm").addEventListener("submit", async ev=>{
+  ev.preventDefault();
+  const token = el("newToken").value.trim(); if(!token){ showToast("⚠️ Token tidak boleh kosong!","orange"); return; }
+  try{ await db.ref("panel/"+token).set(true); showToast("✅ Token "+token+" berhasil ditambahkan!","green"); el("addTokenForm").reset(); el("formAddToken").classList.add("hidden"); btnToggleTokenForm.textContent="➕ Tambah Token"; loadAllTokens(); loadAllUsers(); }
+  catch(err){ showToast("Error: "+err.message,"red"); }
 });
-
-function loadAllTokens(){
-  const tbody=document.querySelector("#tokenTable tbody");
-  const select=document.getElementById("tokenSelect");
-  tbody.innerHTML=""; select.innerHTML="";
-  db.ref("panel").get().then(snap=>{
+async function loadAllTokens(){
+  const tbody = el("tokenTableBody"); const select = el("tokenSelect");
+  tbody.innerHTML = `<tr><td colspan="3">Memuat...</td></tr>`; select.innerHTML=`<option value="">-- Pilih Token --</option>`;
+  try{
+    const snap = await db.ref("panel").get();
     if(snap.exists()){
-      const tokens=snap.val();
+      const tokens = snap.val(); tbody.innerHTML="";
       for(const t in tokens){
-        countUsersByToken(t).then(jumlah=>{
-          const tr=document.createElement("tr");
-          tr.innerHTML=`
-            <td>${t}</td>
-            <td>${jumlah} user</td>
-            <td><button class="btn-danger" onclick="deleteToken('${t}')">Hapus Token</button></td>
-          `;
-          tbody.appendChild(tr);
-        });
-        const opt=document.createElement("option");
-        opt.value=t; opt.textContent=t;
-        select.appendChild(opt);
+        const jumlah = await countUsersByToken(t);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${t}</td><td>${jumlah} user</td><td><button class="btn-danger" onclick="deleteToken('${t}')">Hapus Token</button></td>`;
+        tbody.appendChild(tr);
+        const opt = document.createElement("option"); opt.value=t; opt.textContent=t; select.appendChild(opt);
       }
-    } else {
-      tbody.innerHTML=`<tr><td colspan="3">Belum ada token</td></tr>`;
-    }
-  });
+    } else tbody.innerHTML=`<tr><td colspan="3">Belum ada token</td></tr>`;
+  }catch(err){ tbody.innerHTML=`<tr><td colspan="3">Error load tokens</td></tr>`; showToast("Error load tokens: "+err.message,"red"); }
+}
+async function countUsersByToken(token){
+  try{ const snap = await db.ref("users").get(); if(snap.exists()){ const users=snap.val(); let c=0; for(const k in users){ if(users[k].token===token)c++; } return c; } return 0; }
+  catch(err){ return 0; }
 }
 
-function countUsersByToken(token){
-  return db.ref("users").get().then(snap=>{
-    if(snap.exists()){
-      let count=0;
-      const users=snap.val();
-      for(const key in users){
-        if(users[key].token===token) count++;
-      }
-      return count;
-    }
-    return 0;
-  });
-}
-
-function deleteToken(token){
+// ===== DELETE TOKEN & RELATED USERS =====
+async function deleteToken(token){
   if(token==="developer"){ showToast("⚠️ Token ini tidak bisa dihapus!","orange"); return; }
-  if(confirm("Yakin ingin menghapus token: "+token+" ?")){
-    db.ref("panel/"+token).remove();
-    db.ref("users").get().then(snap=>{
-      if(snap.exists()){
-        const users=snap.val();
-        for(const key in users){
-          if(users[key].token===token){
-            db.ref("users/"+key).remove();
-          }
-        }
-      }
-    });
+  if(!confirm("Yakin ingin menghapus token: "+token+" ?\nSemua user dengan token ini akan dihapus.")) return;
+  try{
+    await db.ref("panel/"+token).remove();
+    const usersSnap = await db.ref("users").get();
+    if(usersSnap.exists()){ const users=usersSnap.val(); for(const key in users){ if(users[key].token===token){ await db.ref("users/"+key).remove(); } } }
     showToast("🗑️ Token "+token+" dan semua user terkait berhasil dihapus!","red");
     loadAllTokens(); loadAllUsers();
-  }
+  }catch(err){ showToast("Error hapus token: "+err.message,"red"); }
 }
+window.deleteToken = deleteToken;
 
-// === TOGGLE MODE ===
-document.getElementById("toggleMode").addEventListener("click",()=>{
+// ===== MODE TOGGLE =====
+el("toggleMode").addEventListener("click", ()=>{
   document.body.classList.toggle("light-mode");
 });
 </script>
 </body>
-</html>
+                            </html>
