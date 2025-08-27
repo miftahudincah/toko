@@ -82,7 +82,7 @@ button{ padding:10px 14px;border-radius:8px;border:none; cursor:pointer; font-si
       <input type="password" id="loginPassword" placeholder="Password" required />
       <div class="controls">
         <button type="submit" class="btn-primary" id="btnLogin">Login</button>
-        <div class="note">Default dev: <strong>zaki5go</strong> / <strong>miftahuddin9</strong></div>
+        <div class="note"> <strong></strong> / <strong></div>
       </div>
     </form>
   </div>
@@ -291,6 +291,7 @@ el("addUserForm").addEventListener("submit", async (ev)=>{
 });
 
 // ===== LOAD USERS =====
+// ===== LOAD USERS =====
 async function loadAllUsers(){
   const tbody = el("userTableBody");
   tbody.innerHTML = `<tr><td colspan="6">Memuat...</td></tr>`;
@@ -311,6 +312,7 @@ async function loadAllUsers(){
             <button class="btn-warning" onclick="toggleAdmin('${u.email}',${u.isAdmin})">
               ${u.isAdmin?"Jadikan User":"Jadikan Admin"}
             </button>&nbsp;
+            <button class="btn-primary" onclick="changeUserToken('${u.email}','${u.token||""}')">Ubah Token</button>&nbsp;
             <button class="btn-danger" onclick="deleteUser('${u.email}')">Hapus</button>
           </td>`;
         tbody.appendChild(tr);
@@ -318,7 +320,28 @@ async function loadAllUsers(){
     } else tbody.innerHTML = `<tr><td colspan="6">Belum ada user</td></tr>`;
   }catch(err){ tbody.innerHTML = `<tr><td colspan="6">Error load users</td></tr>`; showToast("Error load users: "+err.message,"red"); }
 }
+// ===== UBAH TOKEN USER =====
+async function changeUserToken(email, currentToken){
+  const tokenSnap = await db.ref("panel").get();
+  if(!tokenSnap.exists()){ showToast("Belum ada token","orange"); return; }
 
+  const allTokens = Object.keys(tokenSnap.val()).filter(t => t !== "developer");
+  const newToken = prompt("Token user saat ini: "+currentToken+"\n\nPilih token baru:\n"+allTokens.join(", "), currentToken);
+  if(!newToken) return;
+
+  if(!allTokens.includes(newToken)){
+    showToast("❌ Token tidak valid!","red");
+    return;
+  }
+
+  const userId = email.replace(/\W/g,"_");
+  try{
+    await db.ref("users/"+userId).update({token:newToken});
+    showToast("🔑 Token user berhasil diubah ke "+newToken,"green");
+    loadAllUsers(); loadAllTokens();
+  }catch(err){ showToast("Error ubah token: "+err.message,"red"); }
+}
+window.changeUserToken = changeUserToken;
 // ===== DELETE & TOGGLE ADMIN =====
 async function deleteUser(email){
   if(!confirm("Yakin ingin menghapus user: "+email+" ?")) return;
@@ -422,4 +445,4 @@ el("toggleMode").addEventListener("click", () => {
 });
 </script>
 </body>
-</html>
+  </html>
